@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CivicFix – Public Issue Reporting and Resolution Tracker</title>
+    <!-- Leaflet CSS -->
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+     <!-- Leaflet Search Control -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --primary-blue: #0056b3; /* Trust/Gov */
+            --secondary-blue: #e3f2fd;
+            --success-green: #28a745; /* Resolved */
+            --warning-brown: #795548; /* Infrastructure */
+            --danger-red: #dc3545; /* Report Button */
+            --text-dark: #333;
+            --text-light: #666;
+            --bg-light: #f8f9fa;
+            --white: #ffffff;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            padding-top: 70px; /* Space for sticky nav */
+        }
+
+        /* --- NAVIGATION --- */
+        .navbar {
+            background-color: var(--white);
+            box-shadow: var(--shadow);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 0.8rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+        }
+
+        .nav-links li a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-links li a:hover, .nav-links li a.active {
+            color: var(--primary-blue);
+        }
+
+        /* Mobile Menu Toggle */
+        .menu-toggle {
+            display: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            text-align: center;
+            padding: 5rem 1rem;
+            color: white;
+            background: linear-gradient(135deg, var(--secondary-blue) 0%, #fff 100%);
+        }
+
+        .report-btn-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: var(--danger-red);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            box-shadow: 0 10px 20px rgba(220, 53, 69, 0.4);
+            cursor: pointer;
+            transition: var(--transition);
+            animation: pulse 2s infinite;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem auto;
+        }
+
+        .report-btn-large i {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .report-btn-large:hover {
+            transform: scale(1.05);
+            background-color: #c82333;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* --- STATS SECTION --- */
+        .stats-container {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+        }
+
+        /* --- MAIN CONTENT GRID --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+
+        /* --- ISSUE FEED --- */
+        .section-title {
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+            border-left: 5px solid var(--primary-blue);
+            padding-left: 10px;
+        }
+
+        .issue-card {
+            background: var(--white);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: 0.3s ease;
+        }
+
+        .issue-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+        }
+
+        .issue-img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .issue-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .issue-content {
+            padding: 1.5rem;
+        }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .badge-pothole { background-color: var(--warning-brown); }
+        .badge-streetlight { background-color: #ffc107; color: #333; }
+        .badge-garbage { background-color: #17a2b8; }
+        .badge-water { background-color: #007bff; }
+        .badge-resolved { background-color: var(--success-green); }
+        .badge-delayed { background-color: var(--danger-red); }
+
+        .issue-meta {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 15px;
+        }
+
+        .deadline-timer {
+            font-weight: bold;
+            color: var(--danger-red);
+        }
+
+        .issue-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+
+        .upvote-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: var(--transition);
+        }
+
+        .upvote-btn:hover, .upvote-btn.active {
+            background-color: var(--secondary-blue);
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .share-btn {
+            color: var(--text-light);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .share-btn:hover { color: #1da1f2; }
+
+        /* --- SIDEBAR --- */
+        .sidebar-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .leaderboard-item:last-child { border: none; }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ddd;
+        }
+
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .gov-link {
+            display: block;
+            background-color: var(--primary-blue);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: var(--transition);
+        }
+
+        .gov-link:hover { background-color: #004494; }
+
+        /* --- MAP SECTION --- */
+        #map-section {
+            height: 500px;
+            margin: 2rem 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            z-index: 1;
+        }
+
+        /* --- MODAL --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .ai-detection-box {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none; /* Hidden by default */
+            align-items: center;
+            gap: 10px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .submit-btn:hover { background-color: #004494; }
+
+        /* --- ADMIN DASHBOARD --- */
+        .admin-panel {
+            display: none; /* Hidden by default */
+            padding: 2rem;
+        }
+        
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: var(--shadow);
+        }
+
+        .admin-table th, .admin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .admin-table th {
+            background-color: var(--secondary-blue);
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .menu-toggle { display: block; }
+            .nav-links.active {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 70px;
+                left: 0;
+                width: 100%;
+                background: white;
+                padding: 1rem;
+                box-shadow: var(--shadow);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVIGATION -->
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-building-shield"></i> CivicFix
+        </div>
+        <div class="menu-toggle" id="mobile-menu">
+            <i class="fa-solid fa-bars"></i>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#" class="active" onclick="showSection('home')">Home</a></li>
+            <li><a href="#" onclick="openReportModal()">Report Issue</a></li>
+            <li><a href="#" onclick="showSection('map-section')">Map</a></li>
+            <li><a href="#" onclick="showSection('home')">Trending</a></li>
+            <li><a href="#" onclick="showSection('admin')">Admin Dashboard</a></li>
+        </ul>
+    </nav>
+
+    <!-- HOME SECTION -->
+    <div id="home-section">
+        <header class="hero">
+            <button class="report-btn-large" onclick="openReportModal()">
+                <i class="fa-solid fa-camera"></i>
+                REPORT ISSUE
+            </button>
+            <p>Help improve your city. Report problems instantly.</p>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number" id="total-issues">0</div>
+                <div>Total Reported</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="resolved-issues" style="color: var(--success-green);">0</div>
+                <div>Resolved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pending-issues" style="color: #ffc107;">0</div>
+                <div>Pending</div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Main Feed -->
+            <main>
+                <h2 class="section-title">Trending Issues</h2>
+                <div id="issues-feed">
+                    <!-- Featured Example Cards -->
+                    <div class="issue-card">
+                        <div class="issue-content">
+                            <h3>Pothole on MG Road</h3>
+                            <p>Reported 2 hours ago</p>
+                        </div>
+                    </div>
+
+                    <div class="issue-card">
+                        <div class="issue-content">
+                            <h3>Garbage Overflow</h3>
+                            <p>Reported 1 day ago</p>
+                        </div>
+                    </div>
+
+                    <div class="issue-card">
+                        <div class="issue-content">
+                            <h3>Streetlight Not Working</h3>
+                            <p>Reported 3 hours ago</p>
+                        </div>
+                    </div>
+                    <!-- Issues will be injected here via JS -->
+                </div>
+                
+                <div style="background: #e3f2fd; padding: 1.5rem; border-radius: 10px; margin-top: 2rem;">
+                    <h3><i class="fa-solid fa-rocket"></i> Future Scaling</h3>
+                    <p>Once we reach 50,000+ users, CivicFix will integrate directly with government departments for automatic complaint forwarding and real-time resolution tracking APIs.</p>
+                </div>
+            </main>
+
+            <!-- Sidebar -->
+            <aside>
+                <div class="sidebar-card">
+                    <h3 class="section-title">Top Contributors</h3>
+                    <div id="leaderboard">
+                        <!-- Leaderboard items injected via JS -->
+                    </div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3 class="section-title">Government Links</h3>
+                    <a href="https://www.icrf.org" target="_blank" class="gov-link">Disaster Response Support</a>
+                    <a href="https://ipgrs.karnataka.gov.in" target="_blank" class="gov-link">Karnataka Public Grievance Portal</a>
+                    <a href="https://bbmp.gov.in" target="_blank" class="gov-link">BBMP Civic Complaints</a>
+                </div>
+                
+                <div class="sidebar-card">
+                    <h3 class="section-title">Anti-Fake System</h3>
+                    <p style="font-size: 0.9rem; color: #666;">
+                        <i class="fa-solid fa-shield-halved"></i> Reports with low votes are filtered out. Community voting helps ensure only real issues are prioritized.
+                    </p>
+                </div>
+
+                <div class="sidebar-card">
+                    <h3 class="section-title">Real Civic Fix Stories</h3>
+                    <ul style="list-style:none; font-size:14px">
+                        <li>
+                            <a href="https://bangaloremirror.indiatimes.com" target="_blank">
+                                Pothole fixed after citizen complaints
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.deccanherald.com/city/bengaluru-infrastructure" target="_blank">
+                                Streetlight repairs across Bengaluru
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.thehindu.com/news/cities/bangalore/" target="_blank">
+                                Garbage clearance drives
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- MAP SECTION -->
+    <div id="map-section" style="display:none;">
+    <div class="container" style="display:block;">
+
+        <h2 class="section-title">Issue Map</h2>
+
+        <input 
+        id="mapSearch"
+        placeholder="Search location (ex: Indiranagar, Bangalore)"
+        style="
+        width:100%;
+        padding:12px;
+        margin-bottom:10px;
+        border-radius:8px;
+        border:1px solid #ccc;
+        ">
+
+        <div id="map" style="height:500px;width:100%;border-radius:10px;"></div>
+
+    </div>
+</div>
+    <!-- ADMIN DASHBOARD -->
+    <div id="admin" class="admin-panel container">
+        <h2 class="section-title">Admin Dashboard</h2>
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Location</th>
+                        <th>Votes</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-table-body">
+                    <!-- Admin rows injected via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- REPORT MODAL -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeReportModal()">&times;</span>
+            <h2 style="margin-bottom: 1.5rem;">Report an Issue</h2>
+            
+            <form id="reportForm">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="issueCategory" class="form-control" required>
+                        <option value="Pothole">Pothole</option>
+                        <option value="Broken Streetlight">Broken Streetlight</option>
+                        <option value="Garbage Overflow">Garbage Overflow</option>
+                        <option value="Water Leakage">Water Leakage</option>
+                        <option value="Road Damage">Road Damage</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="issueDesc" class="form-control" rows="3" placeholder="Describe the problem..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="issueLocation" class="form-control" value="Detecting..." readonly>
+                    <small style="color: #666;">Location auto-detected via GPS</small>
+                </div>
+
+                <div class="form-group" id="authorityInfo" style="background: #f0f0f0; padding: 10px; border-radius: 5px;">
+                    <small><strong>Assigned To:</strong> <span id="deptName">Municipal Corporation</span></small>
+                </div>
+
+                <button type="submit" class="submit-btn">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        // --- DATA & STATE ---
+        const categories = {
+            'Pothole': { days: 7, dept: 'Road Department', color: 'brown' },
+            'Broken Streetlight': { days: 5, dept: 'Electricity Department', color: 'yellow' },
+            'Garbage Overflow': { days: 2, dept: 'Municipal Corporation', color: 'teal' },
+            'Water Leakage': { days: 3, dept: 'Water Board', color: 'blue' },
+            'Road Damage': { days: 7, dept: 'Road Department', color: 'brown' }
+        };
+
+        // Mock Data for Initial Population
+        let issues = [
+            {
+                id: 1,
+                desc: "Large pothole causing traffic jams near Main Street intersection.",
+                category: "Pothole",
+                image: "",
+                location: "12.9716, 77.5946",
+                votes: 45,
+                reporter: "Citizen_A",
+                timestamp: Date.now() - 86400000 * 2, // 2 days ago
+                status: "Pending",
+                deadline: Date.now() + 86400000 * 5
+            },
+            {
+                id: 2,
+                desc: "Garbage pile up in the public park. Smell is unbearable.",
+                category: "Garbage Overflow",
+                image: "",
+                location: "12.9352, 77.6245",
+                votes: 120,
+                reporter: "EcoWarrior",
+                timestamp: Date.now() - 86400000, // 1 day ago
+                status: "Pending",
+                deadline: Date.now() + 86400000 * 1
+            },
+            {
+                id: 3,
+                desc: "Streetlight flickering and completely off at night.",
+                category: "Broken Streetlight",
+                image: "",
+                location: "12.9784, 77.6408",
+                votes: 15,
+                reporter: "NightOwl",
+                timestamp: Date.now() - 86400000 * 4,
+                status: "Resolved",
+                deadline: Date.now() - 86400000 * 1 // Expired
+            }
+        ];
+
+        async function loadIssues(){
+
+            const res = await fetch("/issues")
+
+            const data = await res.json()
+
+            issues = data
+
+            renderIssues()
+
+        }
+
+        let map;
+        let markers = [];
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            renderIssues();
+            updateStats();
+            renderLeaderboard();
+            startTimers();
+            
+            // Mobile Menu
+            document.getElementById('mobile-menu').addEventListener('click', () => {
+                document.querySelector('.nav-links').classList.toggle('active');
+            });
+
+            // Geolocation for form
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    document.getElementById('issueLocation').value = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`;
+                });
+            }
+        });
+
+        // --- MAP FUNCTIONS ---
+        function initMap() {
+
+    map = L.map('map').setView([12.9716, 77.5946], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // SEARCH BAR
+    L.Control.geocoder({
+        defaultMarkGeocode: true
+    }).addTo(map);
+
+    updateMapMarkers();
+}
+        function updateMapMarkers() {
+            // Clear existing markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            issues.forEach(issue => {
+                const coords = issue.location.split(', ');
+                const markerColor = issue.status === 'Resolved' ? 'green' : 'red';
+                
+                // Create a simple circle marker
+                const circle = L.circleMarker(coords, {
+                    color: markerColor,
+                    fillColor: markerColor,
+                    fillOpacity: 0.5,
+                    radius: 10
+                }).addTo(map);
+
+                const popupContent = `
+                    <div style="text-align:center">
+                        <h4>${issue.category}</h4>
+                        <p>${issue.desc.substring(0, 30)}...</p>
+                        <b>Votes: ${issue.votes}</b><br>
+                        <span style="color:${issue.status === 'Resolved' ? 'green' : 'red'}">${issue.status}</span>
+                    </div>
+                `;
+
+                circle.bindPopup(popupContent);
+                markers.push(circle);
+            });
+        }
+
+        // --- RENDERING ---
+        function renderIssues() {
+            const feed = document.getElementById('issues-feed');
+            const adminBody = document.getElementById('admin-table-body');
+            
+            feed.innerHTML = '';
+            adminBody.innerHTML = '';
+
+            // Sort by votes (Trending)
+            const sortedIssues = [...issues].sort((a, b) => b.votes - a.votes);
+
+            sortedIssues.forEach(issue => {
+                // Feed Card
+                const timeLeft = getTimeLeft(issue.deadline);
+                const isDelayed = new Date() > issue.deadline && issue.status !== 'Resolved';
+                const statusClass = issue.status === 'Resolved' ? 'badge-resolved' : (isDelayed ? 'badge-delayed' : '');
+                const statusText = issue.status === 'Resolved' ? 'Resolved' : (isDelayed ? 'Delayed' : 'Pending');
+                
+                const card = document.createElement('div');
+                card.className = 'issue-card';
+                card.innerHTML = `
+                    <div class="issue-content">
+                        <div class="issue-header">
+                            <span class="badge badge-${getCategoryClass(issue.category)}">${issue.category}</span>
+                            <span class="badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <p>${issue.desc}</p>
+                        <div class="issue-meta">
+                            <span><i class="fa-solid fa-location-dot"></i> ${issue.location}</span>
+                            <span><i class="fa-solid fa-user"></i> ${issue.reporter}</span>
+                        </div>
+                        <div class="issue-meta">
+                            <span>Deadline: <span class="deadline-timer" data-deadline="${issue.deadline}">${timeLeft}</span></span>
+                        </div>
+                        <div class="issue-actions">
+                            <button class="upvote-btn" onclick="upvoteIssue(${issue.id})">
+                                <i class="fa-solid fa-arrow-up"></i> ${issue.votes} Upvotes
+                            </button>
+                            <div class="share-btn" onclick="shareIssue(${issue.id})">
+                                <i class="fa-brands fa-twitter"></i> Share for Awareness
+                            </div>
+                        </div>
+                    </div>
+                `;
+                feed.appendChild(card);
+
+                // Admin Row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>#${issue.id}</td>
+                    <td>${issue.category}</td>
+                    <td>${issue.desc.substring(0, 20)}...</td>
+                    <td>${issue.location}</td>
+                    <td>${issue.votes}</td>
+                    <td>
+                        <select onchange="updateStatus(${issue.id}, this.value)" style="padding:5px;">
+                            <option value="Submitted" ${issue.status === 'Submitted' ? 'selected' : ''}>Submitted</option>
+                            <option value="In Progress" ${issue.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Resolved" ${issue.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                        </select>
+                    </td>
+                    <td><button onclick="deleteIssue(${issue.id})" style="color:red; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+                adminBody.appendChild(row);
+            });
+        }
+
+        function getCategoryClass(cat) {
+            if(cat.includes('Pothole') || cat.includes('Road')) return 'pothole';
+            if(cat.includes('Streetlight')) return 'streetlight';
+            if(cat.includes('Garbage')) return 'garbage';
+            if(cat.includes('Water')) return 'water';
+            return 'pothole';
+        }
+
+        function renderLeaderboard() {
+            const lb = document.getElementById('leaderboard');
+            // Calculate points (mock logic: votes * 10)
+            const userPoints = {};
+            issues.forEach(i => {
+                userPoints[i.reporter] = (userPoints[i.reporter] || 0) + (i.votes * 10);
+            });
+
+            const sortedUsers = Object.entries(userPoints)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5); // Top 5
+
+            lb.innerHTML = sortedUsers.map((user, index) => `
+                <div class="leaderboard-item">
+                    <div style="font-weight:bold; color: #ccc;">#${index + 1}</div>
+                    <div class="avatar-placeholder">${user[0].charAt(0).toUpperCase()}</div>
+                    <div style="flex-grow:1;">
+                        <div style="font-weight:bold;">${user[0]}</div>
+                        <div style="font-size:0.8rem; color:var(--primary-blue);">${user[1]} Points</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('total-issues').innerText = issues.length;
+            document.getElementById('resolved-issues').innerText = issues.filter(i => i.status === 'Resolved').length;
+            document.getElementById('pending-issues').innerText = issues.filter(i => i.status !== 'Resolved').length;
+        }
+
+        // --- INTERACTIVITY ---
+        function openReportModal() {
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
+            document.getElementById('reportForm').reset();
+            document.getElementById('aiResult').style.display = 'none';
+        }
+
+        // Simulate AI
+        function simulateAIDetection() {
+            const aiBox = document.getElementById('aiResult');
+            const aiText = document.getElementById('aiText');
+            const catSelect = document.getElementById('issueCategory');
+            
+            aiBox.style.display = 'flex';
+            aiText.innerText = "AI analyzing description...";
+            
+            setTimeout(() => {
+                const types = ['Pothole', 'Broken Streetlight', 'Garbage Overflow', 'Water Leakage', 'Road Damage'];
+                const detected = types[Math.floor(Math.random() * types.length)];
+                aiText.innerText = `AI Detected: Possible ${detected}`;
+                catSelect.value = detected;
+                updateDeptInfo(detected);
+            }, 1500);
+        }
+
+        // Update Department Info based on Category
+        document.getElementById('issueCategory').addEventListener('change', (e) => {
+            updateDeptInfo(e.target.value);
+        });
+
+        function updateDeptInfo(category) {
+            const dept = categories[category].dept;
+            document.getElementById('deptName').innerText = dept;
+        }
+
+        // Submit Form
+        document.getElementById('reportForm').addEventListener('submit', async (e) => {
+
+            e.preventDefault()
+
+            const category = document.getElementById('issueCategory').value
+            const desc = document.getElementById('issueDesc').value
+            const location = document.getElementById('issueLocation').value
+
+            const response = await fetch("/report", {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    category,
+                    desc,
+                    location
+                })
+            })
+
+            const data = await response.json()
+
+            console.log(data)
+
+            alert("Issue reported!")
+
+        })
+
+        function upvoteIssue(id) {
+            const issue = issues.find(i => i.id === id);
+            if(issue) {
+                issue.votes++;
+                renderIssues();
+                renderLeaderboard();
+            }
+        }
+
+        function updateStatus(id, newStatus) {
+            const issue = issues.find(i => i.id === id);
+            if(issue) {
+                issue.status = newStatus;
+                renderIssues();
+                updateStats();
+                updateMapMarkers();
+            }
+        }
+
+        function deleteIssue(id) {
+            if(confirm('Are you sure you want to delete this report?')) {
+                issues = issues.filter(i => i.id !== id);
+                renderIssues();
+                updateStats();
+                updateMapMarkers();
+            }
+        }
+
+        function shareIssue(id) {
+            const issue = issues.find(i => i.id === id);
+            const text = `Help fix this issue in our city! ${issue.category} at ${issue.location}. #CivicFix`;
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        // --- UTILS ---
+        function showSection(sectionId) {
+            // Hide all main sections
+            document.getElementById('home-section').style.display = 'none';
+            document.getElementById('map-section').style.display = 'none';
+            document.getElementById('admin').style.display = 'none';
+            
+            // Show selected
+            if(sectionId === 'home') document.getElementById('home-section').style.display = 'block';
+            if(sectionId === 'map-section') {
+                document.getElementById('map-section').style.display = 'block';
+                setTimeout(() => { map.invalidateSize(); }, 200); // Fix Leaflet render issue
+            }
+            if(sectionId === 'admin') document.getElementById('admin').style.display = 'block';
+
+            // Update Nav Active State
+            document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Close mobile menu if open
+            document.querySelector('.nav-links').classList.remove('active');
+        }
+
+        function getTimeLeft(deadline) {
+            // Ensure deadline is a number (timestamp)
+            const now = Date.now();
+            const total = deadline - now;
+            
+            if (total <= 0) return "Deadline Passed";
+            
+            const days = Math.floor(total / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((total % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60));
+            
+            let result = "";
+            if(days > 0) result += `${days}d `;
+            if(hours > 0) result += `${hours}h `;
+            if(minutes > 0) result += `${minutes}m`;
+            
+            return result.trim();
+        }
+
+        function startTimers() {
+            setInterval(() => {
+                const timers = document.querySelectorAll('.deadline-timer');
+                timers.forEach(timer => {
+                    const deadline = parseInt(timer.getAttribute('data-deadline'));
+                    timer.innerText = getTimeLeft(deadline);
+                    if(getTimeLeft(deadline) === "Deadline Passed") {
+                        timer.style.color = "red";
+                        timer.style.fontWeight = "bold";
+                    }
+                });
+            }, 60000); // Update every minute
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('reportModal');
+            if (event.target == modal) {
+                closeReportModal();
+            }
+        }
+
+        // MAP SEARCH FUNCTIONALITY
+        document.getElementById("mapSearch").addEventListener("keypress", function(e) {
+            if(e.key === "Enter"){
+                const location = this.value;
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${location}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.length > 0){
+                        const lat = data[0].lat;
+                        const lon = data[0].lon;
+                        map.setView([lat, lon], 15);
+                        L.marker([lat, lon]).addTo(map)
+                        .bindPopup(location)
+                        .openPopup();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
